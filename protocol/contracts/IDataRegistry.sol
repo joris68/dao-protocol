@@ -6,7 +6,7 @@ interface IDataRegistry {
     struct File {
         address owner;
         bytes32 rawDataHash;
-        bytes32 fileCID;
+        string  fileCID;
         FileStatus status;
         string sourceUrl;
         uint256 tlstimestamp;

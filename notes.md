@@ -13,3 +13,9 @@ Protocol:
 
 
 - data Lineage hash
+
+
+Todo:
+
+- decryption hinkriegen direkt im Docker container
+- phala network integrieren

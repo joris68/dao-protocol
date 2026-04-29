@@ -26,5 +26,9 @@
     "hardhat": "^3.4.1",
     "mocha": "^11.7.5",
     "typescript": "~5.8.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "pinata": "^2.5.5"
   }
 }
