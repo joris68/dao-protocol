@@ -1,7 +1,12 @@
-
+import 'dotenv/config';
 import { network } from "hardhat";
 import { ZeroHash, Wallet } from "ethers";
 const { ethers } = await network.create({ network: "localhost" });
+import { randomBytes } from "crypto";
+import { encrypt, decrypt } from "./encrypt.js";
+import { uploadFile, downloadFile } from "./IPFSstorage.js";
+
+const secret_encryption_key = randomBytes(32);
 
 import DataRegistryImpl from "../artifacts/contracts/DataRegistryImpl.sol/DataRegistryImpl.json" with { type: "json" };
 const DATAREGISTRY_ABI = DataRegistryImpl.abi;
@@ -73,41 +78,49 @@ async function compressWebProof(presentation, jmespathQueries) {
 async function sumbitContribution(compressedWebProof) {
   const { zkProof, journalDataAbi } = compressedWebProof.data;
 
-  console.log("  zkProof:       ", zkProof);
-  console.log("  journalDataAbi:", journalDataAbi);
-
   if (!zkProof || !journalDataAbi) {
     throw new Error(`Missing proof data. Full response: ${JSON.stringify(compressedWebProof, null, 2)}`);
   }
 
   const abiCoder = new ethers.AbiCoder();
-  const [notaryKeyFingerprint, method, url, tlsTimestamp, extractionHash] =
+  const [notaryKeyFingerprint, method, url, tlsTimestamp, extractionHash, rawData] =
     abiCoder.decode(
-      ["bytes32", "string", "string", "uint256", "bytes32"],
+      ["bytes32", "string", "string", "uint256", "bytes32", "string"],
       journalDataAbi
     );
   console.log("  Decoded journal:");
-  console.log("    notaryKeyFingerprint:", notaryKeyFingerprint);
-  console.log("    method:              ", method);
-  console.log("    url:                 ", url);
-  console.log("    tlsTimestamp:        ", tlsTimestamp.toString());
   console.log("    extractionHash:      ", extractionHash);
+  console.log("extracted raw data:", rawData);
 
   const journalHash = ethers.sha256(journalDataAbi);
   console.log("  journalHash:         ", journalHash);
 
+  const encryptedData = encrypt(rawData, secret_encryption_key, extractionHash);
+  const encryptedCID = await uploadFile(encryptedData);
+
   const journal = { notaryKeyFingerprint, method, url, tlsTimestamp, extractionHash };
-  const tx = await dataRegistry.processNewDataSubmission(journalHash, journal, zkProof, ZeroHash);
+  const tx = await dataRegistry.processNewDataSubmission(journalHash, journal, zkProof, encryptedCID);
   const receipt = await tx.wait();
   console.log("Contribution submitted! tx:", receipt.hash);
-  console.log(receipt.logs);
-  console.log(receipt.events);
-  return receipt;
+  return encryptedCID;
 }
 
 async function queryContribution() {
   const files = await dataRegistry.getFilesForAddres(ADDRESS_CONTRIBUTOR);
-  console.log("Files from the Read API: ", files);
+}
+
+async function verifyValidity(encryptedCID) {
+  const envelope = await downloadFile(encryptedCID);
+  const { rawData, rawDataHash } = decrypt(envelope, secret_encryption_key);
+  console.log("raw data: ", rawData);
+  console.log("raw data hash: ", rawDataHash);
+  const computedHash = ethers.keccak256(ethers.toUtf8Bytes(rawData));
+  console.log("computed data Hash: ", computedHash);
+  if (computedHash === rawDataHash) {
+    console.log("Data integrity verified ✓ — hash matches on-chain extractionHash");
+  } else {
+    console.log("Data integrity check FAILED — hash mismatch");
+  }
 }
 
 async function main() {
@@ -123,10 +136,12 @@ async function main() {
   const resCompresed = await compressWebProof(presentation, extractFields);
 
   console.log("\nStep 3: Submitting contribution...");
-  await sumbitContribution(resCompresed);
+  const encryptedCID = await sumbitContribution(resCompresed);
 
   console.log("Read the registered data");
   await queryContribution();
+  await verifyValidity(encryptedCID);
+  process.exit(0);
 }
 
 main().catch((err) => {

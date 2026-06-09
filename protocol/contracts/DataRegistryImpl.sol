@@ -56,7 +56,7 @@ contract DataRegistryImpl is IDataRegistry {
         return validUrlHash;
     }
 
-    function processNewDataSubmission(bytes32 journalHash, JournalData calldata journal, bytes calldata seal, bytes32 fileCID) external {
+    function processNewDataSubmission(bytes32 journalHash, JournalData calldata journal, bytes calldata seal, string calldata fileCID) external {
         verifyDataContribution(journalHash, journal, seal);
         registerDataAsset(journal, fileCID);
         emit ContributionSubmitted(msg.sender, block.timestamp, block.number);
@@ -82,7 +82,7 @@ contract DataRegistryImpl is IDataRegistry {
         }
     }
 
-    function registerDataAsset(JournalData calldata journal, bytes32 fileCID) internal {
+    function registerDataAsset(JournalData calldata journal, string calldata fileCID) internal {
         address newOwner = msg.sender;
         File memory f = File(newOwner, journal.extractionHash, fileCID, FileStatus.proven, journal.url, journal.tlsTimestamp);
         if (!hasContributed[newOwner]) {
