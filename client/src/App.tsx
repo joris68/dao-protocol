@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { ContributeWizard } from '@/components/ContributeWizard'
+import { ContributeWizard } from '@/components/contribution/ContributeWizard'
 
 function App() {
   const [showComingSoon, setShowComingSoon] = useState(false)

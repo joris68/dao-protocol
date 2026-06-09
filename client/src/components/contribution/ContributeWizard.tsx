@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 
+
 const STEPS = [
   { label: 'Connect', description: 'Connect your wallet' },
   { label: 'Your Data', description: 'Select what you want to contribute' },
